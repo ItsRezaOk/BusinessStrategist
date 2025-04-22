@@ -1,0 +1,11 @@
+streamlit
+python-dotenv
+plotly
+pandas
+requests
+fuzzywuzzy
+python-Levenshtein
+scikit-learn
+numpy==1.26.4
+prophet[cmdstanpy]==1.1.5
+cmdstanpy==1.0.8
