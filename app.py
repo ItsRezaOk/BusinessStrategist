@@ -1,6 +1,6 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
+import streamlit as st #Main Streamlit app
+import pandas as pd  #Read uploads to CSV- Store, pass, clean data
+import numpy as np #np.linspace for forecasting
 from datetime import datetime
 from config import Config
 from modules.data_processor import DataProcessor
@@ -15,20 +15,20 @@ config = Config()
 
 # Set page config
 st.set_page_config(
-    page_title="VelocityAI 2.0 - Capital Flow Optimizer", 
+    page_title="ProductVelocity - Capital Flow Optimizer", 
     layout="wide",
     page_icon="🚀"
 )
 
 # Initialize session state
-if 'data' not in st.session_state:
+if 'data' not in st.session_state: #App cached
     st.session_state.data = None
 if 'industry' not in st.session_state:
     st.session_state.industry = 'retail'
 
 # Initialize modules
-data_processor = DataProcessor()
-visuals = Visualizations()
+data_processor = DataProcessor() #Business logic
+visuals = Visualizations() #Chart Tools
 
 # --- UI Components ---
 def show_onboarding_tour():
@@ -40,7 +40,7 @@ def show_onboarding_tour():
     ]
 
     if st.checkbox("Show onboarding tour", True):
-        with st.expander("🚀 Getting Started Tour"):
+        with st.expander("Getting Started Tour"):
             for step in tour_steps:
                 st.subheader(step['title'])
                 st.write(step['content'])
@@ -48,7 +48,7 @@ def show_onboarding_tour():
 
 def normalize_columns(df):
     # First pass normalization
-    df.columns = [str(col).strip().lower().replace(' ', '_') for col in df.columns]
+    df.columns = [str(col).strip().lower().replace(' ', '_') for col in df.columns] #Help organize columns
     
     # Specific column mappings
     column_mappings = {
@@ -70,9 +70,9 @@ def normalize_columns(df):
     return df
 
 def data_upload_section():
-    st.header("📤 Data Input")
+    st.header("Data Input")
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2) #creates 2 columns
 
     with col1:
         st.subheader("Upload Your Data")
@@ -85,7 +85,7 @@ def data_upload_section():
         if uploaded_file:
             try:
                 df = pd.read_csv(uploaded_file)
-                df = normalize_columns(df)
+                df = normalize_columns(df)  #Lowercase and consistent columns
                 df = data_processor.standardize_columns(df)
                 df = data_processor.calculate_metrics(df)
                 st.session_state.data = df
@@ -96,53 +96,61 @@ def data_upload_section():
                 
 
     with col2:
-        st.subheader("Generate Sample Data")
+        st.subheader("Generate Sample Data") # Generated with Mixtral-8x7B (from Hugging Face)
         business_idea = st.text_input(
             "Describe your business",
             placeholder="e.g., Organic Coffee Roastery"
         )
 
-        if st.button("Generate with AI") and business_idea:
+        if st.button("Generate with AI") and business_idea: #button pressed and business_data is populated
             with st.spinner("Generating sample data..."):
                 try:
                     headers = {"Authorization": f"Bearer {config.HF_API_KEY}"}
                     payload = {
+                       #MAIN PROMPT
+                       #Models output CSV, avoids getting unnessary text from the LLM, column asked are only what is expected
                         "inputs": f"Generate 5 sample product rows for a {business_idea} business with: sku, category, inventory_days, units_sold, unit_cost, unit_price, customer_payment_days, supplier_payment_days. Return only CSV."
                     }
-
+                    #Call Hugging Face API - send POST with prompt and auth
+                    #points to Mixtral endpoint
                     response = requests.post(
                         "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1",
                         headers=headers,
                         json=payload
                     )
 
-                    if response.status_code == 200:
-                        result = response.json()
-                        if isinstance(result, list) and 'generated_text' in result[0]:
-                            result = result[0]['generated_text']
+                    if response.status_code == 200: #if success
+                        result = response.json() #load json
+                        
+                        #Ensures data is in the format we want and Mixtral didnt give like a sentence
+                        if isinstance(result, list) and 'generated_text' in result[0]: #no empty {} json
+                            result = result[0]['generated_text'] #API needs to return a list
                         else:
                             st.error("AI model returned unexpected format.")
                             st.stop()
 
-                        st.subheader("🛠️ Raw AI Output")
+                        st.subheader("Raw AI Output")
                         st.text_area("Check if the result is valid CSV:", result, height=200)
+                        
 
-                        result = result.strip()
+                        #Result trimming, add more if needed or if more efficient
+                        result = result.strip() 
                         if result.startswith("Generate"):
                             result = result[result.find("\n")+1:]
 
-                        df_sample = pd.read_csv(io.StringIO(result))
+                        df_sample = pd.read_csv(io.StringIO(result)) #Converts result to an in-memory file, reads with pandas
                         df_sample = normalize_columns(df_sample)
 
                         numeric_cols = ['inventory_days', 'units_sold', 'unit_cost', 'unit_price', 'customer_payment_days', 'supplier_payment_days']
-                        for col in numeric_cols:
+                        for col in numeric_cols: #Columns must be numbers and not strings
                             if col in df_sample.columns:
-                                df_sample[col] = pd.to_numeric(df_sample[col], errors='coerce')
-
+                                df_sample[col] = pd.to_numeric(df_sample[col], errors='coerce') #takes a col, tries to convert to int/fl using pandas, stores back in col
+                        
+                        #Finalizes AI data to match uploaded
                         df_sample = data_processor.standardize_columns(df_sample)
                         df_sample = data_processor.calculate_metrics(df_sample)
 
-                        st.session_state.data = df_sample
+                        st.session_state.data = df_sample #Store result in memory
                         st.success("Sample data generated!")
                         st.dataframe(df_sample.head())
                     else:
@@ -152,11 +160,6 @@ def data_upload_section():
                 except Exception as e:
                     st.error(f"Generation error: {str(e)}")
 
-# The rest of the code remains unchanged
-
-
-
-
 
 
 def analysis_dashboard():
@@ -164,7 +167,7 @@ def analysis_dashboard():
         st.warning("Upload or generate data to begin analysis")
         return
 
-    df = st.session_state.data
+    df = st.session_state.data #df - generated or uploaded data
 
     required_columns = {'category', 'inventory_days', 'units_sold', 'unit_cost', 
                        'unit_price', 'customer_payment_days', 'supplier_payment_days'}
