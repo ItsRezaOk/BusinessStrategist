@@ -163,7 +163,7 @@ def data_upload_section():
 
 
 def analysis_dashboard():
-    if st.session_state.data is None:
+    if st.session_state.data is None: #dont proceed unless data exists
         st.warning("Upload or generate data to begin analysis")
         return
 
@@ -171,23 +171,24 @@ def analysis_dashboard():
 
     required_columns = {'category', 'inventory_days', 'units_sold', 'unit_cost', 
                        'unit_price', 'customer_payment_days', 'supplier_payment_days'}
-    missing = required_columns - set(df.columns.str.lower())
+    missing = required_columns - set(df.columns.str.lower()) #check if we have the right amount of columns
     if missing:
-        st.error(f"Missing required columns: {missing}")
+        st.error(f"Missing required columns: {missing}") #since every metric depends on all these columns, if missing -> error
         st.write("Current columns:", df.columns.tolist())
         return
 
     st.header("Analysis Dashboard")
 
     # Industry selection
-    st.session_state.industry = st.selectbox(
+    st.session_state.industry = st.selectbox( # dropdown list for industries
         "Select your industry for benchmarking",
-        options=list(config.INDUSTRY_BENCHMARKS.keys())
+        options=list(config.INDUSTRY_BENCHMARKS.keys()) #Industry benchmarks are just benchmarks for now but will be changed with professional data later
+
     )
 
     # Key metrics
     st.subheader("Key Metrics")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3) #Horizontal boxes for metric display
     with col1:
         st.metric("Total Revenue", f"${df['revenue'].sum():,.2f}")
     with col2:
@@ -199,20 +200,25 @@ def analysis_dashboard():
     st.subheader("Portfolio Analysis")
     tab1, tab2, tab3 = st.tabs(["Sunburst View", "Priority Matrix", "Benchmarks"])
 
+
+    # See which products/categories contribute the most revenue and which are bottlenecks
     with tab1:
-        st.plotly_chart(
+        st.plotly_chart( #uses plotly sunburst to show Outer: SKU, inner: category, Color: cash_cycle_days, Size: revanue
             visuals.cash_cycle_sunburst(df),
             use_container_width=True
         )
 
+    #What is most worth your attention?
     with tab2:
-        st.plotly_chart(
+        st.plotly_chart( #uses plotly bubble chart to 
             visuals.priority_matrix(df),
             use_container_width=True
         )
 
+
+    #chart compares your actual metrics to the industry benchmark
     with tab3:
-        st.plotly_chart(
+        st.plotly_chart( #inverntory days, Payment gaps, Capital loops/year
             visuals.benchmark_comparison(
                 df,
                 config.INDUSTRY_BENCHMARKS[st.session_state.industry]
@@ -220,27 +226,23 @@ def analysis_dashboard():
             use_container_width=True
         )
 
-    # Scenario modeling
+    # Scenario modeling 
+    #What IF you Improve
     st.subheader("Scenario Modeling")
     with st.expander("Adjust Parameters"):
         col1, col2 = st.columns(2)
+        
+        #inv_reduction = 5 means: simulate optimizing your supply chain so inventory sits for 5 fewer days
+        #payment_improvement = 5 means: simulate customers paying 5 days faster
         with col1:
-            inv_reduction = st.slider(
-                "Reduce Inventory Days By", 
-                0, 30, 5,
-                help="Simulate inventory optimization"
-            )
+            inv_reduction = st.slider("Reduce Inventory Days By", 0, 30, 5, help="Simulate inventory optimization")
         with col2:
-            payment_improvement = st.slider(
-                "Improve Customer Payment Days By",
-                0, 30, 5,
-                help="Simulate better payment terms"
-            )
+            payment_improvement = st.slider("Improve Customer Payment Days By",0, 30, 5,help="Simulate better payment terms")
 
         # Apply scenario
         scenario_df = df.copy()
 
-        # Ensure these columns are numeric
+        # Ensure these columns (with new changes) are numeric
         scenario_df['inventory_days'] = pd.to_numeric(scenario_df['inventory_days'], errors='coerce')
         scenario_df['customer_payment_days'] = pd.to_numeric(scenario_df['customer_payment_days'], errors='coerce')
 
@@ -252,6 +254,8 @@ def analysis_dashboard():
         delta_revenue = scenario_df['revenue'].sum() - df['revenue'].sum()
         delta_loops = scenario_df['loops_per_year'].mean() - df['loops_per_year'].mean()
 
+
+        #Compare results
         st.metric("Projected Revenue Impact", 
                  f"${scenario_df['revenue'].sum():,.2f}",
                  f"{delta_revenue:,.2f}")
@@ -264,7 +268,7 @@ def insights_section():
         return
 
     df = st.session_state.data
-    insights_engine = InsightsEngine(df)
+    insights_engine = InsightsEngine(df) #Takes a data frame and collect insights by creating a dictionay(organized)
 
     st.header("Insights")
 
@@ -318,17 +322,6 @@ def insights_section():
         )
         st.plotly_chart(fig, use_container_width=True)
 
-# # --- Main App Flow ---
-# def main():
-#     st.title("VelocityAI 2.0: Capital Flow Optimizer")
-#     st.markdown("""
-#     **Unlock hidden capital** in your business by identifying bottlenecks and optimizing your cash conversion cycle.
-#     """)
-
-#     show_onboarding_tour()
-#     data_upload_section()
-#     analysis_dashboard()
-#     insights_section()
 
 if __name__ == "__main__":
     main()
