@@ -266,7 +266,7 @@ def insights_section():
     df = st.session_state.data
     insights_engine = InsightsEngine(df)
 
-    st.header("💡 Actionable Insights")
+    st.header("Insights")
 
     # Generate and display insights
     insights = insights_engine.generate_insights()
@@ -318,17 +318,17 @@ def insights_section():
         )
         st.plotly_chart(fig, use_container_width=True)
 
-# --- Main App Flow ---
-def main():
-    st.title("VelocityAI 2.0: Capital Flow Optimizer")
-    st.markdown("""
-    **Unlock hidden capital** in your business by identifying bottlenecks and optimizing your cash conversion cycle.
-    """)
+# # --- Main App Flow ---
+# def main():
+#     st.title("VelocityAI 2.0: Capital Flow Optimizer")
+#     st.markdown("""
+#     **Unlock hidden capital** in your business by identifying bottlenecks and optimizing your cash conversion cycle.
+#     """)
 
-    show_onboarding_tour()
-    data_upload_section()
-    analysis_dashboard()
-    insights_section()
+#     show_onboarding_tour()
+#     data_upload_section()
+#     analysis_dashboard()
+#     insights_section()
 
 if __name__ == "__main__":
     main()
